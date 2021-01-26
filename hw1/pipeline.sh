@@ -99,3 +99,7 @@ echo "Total number of genes and transcripts in $humanGeneAnnotation:"
 echo $nGenesAndTranscripts
 
 # How many genes and transcripts are protein-coding?
+nProteinCodingGene=$(cat Homo_sapiens.GRCh38.102.chr.gtf | grep "protein_coding" | cut -f3 | grep -c "gene")
+nProteinCodingTranscript=$(cat Homo_sapiens.GRCh38.102.chr.gtf | grep "protein_coding" | cut -f3 | grep -c "transcript")
+echo "Number of genes and transcripts that are protein coding: "
+echo $(expr $nProteinCodingGene + $nProteinCodingTranscript)
