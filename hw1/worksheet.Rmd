@@ -1,0 +1,151 @@
+---
+title: BINF 8211 - Homework 1
+author: K. Bodie Weedop
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: pdf_document
+---
+
+## Search the UCSC genome browser at [https://genome.ucsc.edu/] and answer the following questions for the human gene TP53, using the hg38 human genome.
+
+```{bash, echo=FALSE}
+# RefSeq (curated subset) file 
+refSeq=tp53Hg38RefSeqCurated
+# GENCODEv32 file
+gencode=tp53Hg38Gencodev32
+
+if [ ! -f "$refSeq" ]; then
+  echo "You need to download TP53 transcripts reported by NCBI RefSeq genes (curated subset) from UCSC"
+  return
+fi
+
+if [ ! -f "$gencode" ]; then
+  echo "You need to download TP53 transcripts reported by GENCODEv32 from UCSC"
+  return
+fi
+```
+
+1. How many transcripts are reported by each annotation database of the NCBI RefSeq genes (curated subset) and the GENCODE V32?
+    - NCBI RefSeq genes (curated subset): 15
+    - GENCODE V32: 19
+2. How many transcripts agree between the two databases?
+
+```{bash, echo=FALSE}
+# RefSeq (curated subset) file 
+refSeq=tp53Hg38RefSeqCurated
+# GENCODEv32 file
+gencode=tp53Hg38Gencodev32
+
+# Get columns I need to check for agreement
+cat $gencode | grep -v "#" | cut -f2-10 > gencodeColumnsNeeded
+cat $refSeq | grep -v "#" | cut -f3-11 > refSeqColumnsNeeded
+
+gencodeSubset=gencodeColumnsNeeded
+refSeqSubset=refSeqColumnsNeeded
+
+# Sort the two files that we just created
+sort $gencodeSubset > gencodeColumnsNeeded.sorted
+sort $refSeqSubset > refSeqColumnsNeeded.sorted
+```
+
+```{r, echo=FALSE}
+agreements <- system("comm -12 gencodeColumnsNeeded.sorted refSeqColumnsNeeded.sorted | wc -l", intern = TRUE)
+```
+    - `r agreements`
+
+3. Choose a transcript from the NCBI RefSeq gene annotation: indicate the transcript ID and answer the following question about this transcript: How many exons are UTR and how many exons are coding?
+
+```{bash, echo=FALSE}
+# Chosen transcript
+transcriptID=NM_001276698.2
+
+# Get the exon start coordinates
+cdsStart=$(cat tp53Hg38RefSeqCurated | grep "$transcriptID" | cut -f7)
+cdsEnd=$(cat tp53Hg38RefSeqCurated | grep "$transcriptID" | cut -f8)
+exonsStart=$(cat tp53Hg38RefSeqCurated | grep "$transcriptID" | cut -f10)
+utrExons=0
+utrCoords=()
+cdsExons=0
+cdsCoords=()
+
+for i in $(echo $exonsStart | sed "s/,/ /g")
+do
+    if [ $i -lt $cdsStart ]; then
+      # Increment amount of utrExons
+      utrExons=$((utrExons+1))
+      # Add exon location to utrExons
+      utrCoords+=($i)
+    elif [ $i -ge $cdsStart ] && [ $i -lt $cdsEnd ]; then
+      # Increment amount of cdsExons
+      cdsExons=$((cdsExons+1))
+      # Add exon location to utrExons
+      cdsCoords+=($i)
+    else
+      # If not either, then highlight
+      echo "check $i"
+    fi
+done
+
+# Commenting these out for the purpose of Rmd
+# echo "Number of UTR exons: "
+# echo "$utrExons (${utrCoords[*]})"
+# echo "Number of coding exons: "
+# echo "$cdsExons (${cdsCoords[*]})"
+
+echo "$transcriptID" > .transcriptData
+echo "$utrExons (${utrCoords[*]})" >> .transcriptData
+echo "$cdsExons (${cdsCoords[*]})" >> .transcriptData
+```
+
+```{r, echo=FALSE}
+# Now we can read the data that we saved using bash and be able to put them 
+# into the text
+data <- readLines(".transcriptData")
+```
+
+    - Transcript ID: `r data[1]`
+    - UTR Exons: `r data[2]`
+    - Coding Exons: `r data[3]`
+
+
+## Download the human gene annotation GTF file “Homo_sapiens.GRCh38.102.chr.gtf.gz” from  Ensembl at [http://useast.ensembl.org/info/data/ftp/index.html], analyze the file, and answer the questions below: 
+
+```{bash, echo=FALSE}
+humanGeneAnnotation=Homo_sapiens.GRCh38.102.chr.gtf
+
+# Download file if I don't have it
+if [ ! -f "$humanGeneAnnotation" ]; then
+  wget ftp://ftp.ensembl.org/pub/release-102/gtf/homo_sapiens/Homo_sapiens.GRCh38.102.chr.gtf.gz
+  gunzip Homo_sapiens.GRCh38.102.chr.gtf.gz
+fi
+```
+
+1. Which version of the human genome is the GTF file from (hg38, hg19, etc.)? 
+    - hg38
+2. Which annotation version is this file?
+    - 102
+3. How many genes and transcripts in total are in this GTF file? 
+
+```{r, echo=FALSE}
+options("scipen" = 10)
+# How many genes and transcripts in total are in this GTF file?
+
+nGene <- as.numeric(system('cat Homo_sapiens.GRCh38.102.chr.gtf | cut -f3 | grep -v "#" | grep -c "gene"', intern=TRUE))
+
+nTranscript <- as.numeric(system('cat Homo_sapiens.GRCh38.102.chr.gtf | cut -f3 | grep -v "#" | grep -c "transcript"', intern=TRUE))
+
+# nGenesAndTranscripts=$(expr $nGene + $nTranscript)
+nGenesAndTranscripts <- nGene + nTranscript
+```
+    - `r nGenesAndTranscripts`
+
+4. How many genes and transcripts are protein-coding?
+
+```{r, echo=FALSE}
+# How many genes and transcripts are protein-coding?
+nProteinCodingGene <- as.numeric(system('cat Homo_sapiens.GRCh38.102.chr.gtf | grep "protein_coding" | cut -f3 | grep -c "gene"', intern=TRUE))
+
+nProteinCodingTranscript <- as.numeric(system('cat Homo_sapiens.GRCh38.102.chr.gtf | grep "protein_coding" | cut -f3 | grep -c "transcript"', intern=TRUE))
+
+nProteinCoding <- nProteinCodingGene + nProteinCodingTranscript
+```
+    - `r nProteinCoding`
