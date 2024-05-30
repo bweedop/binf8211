@@ -84,3 +84,5 @@ fi
     ```bash
     cat Homo_sapiens.GRCh38.102.chr.gtf | awk -F'\t' '{if($3=="gene" || $3=="transcript" ){print $0}}' | grep -c "protein_coding"
     ```
+
+    randonstringtotestsrcs
